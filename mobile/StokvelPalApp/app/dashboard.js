@@ -27,6 +27,12 @@ export default function Dashboard() {
       </View>
 
       <Button
+        title='View My Groups'
+        onPress={() => router.push('/groups')}
+        color='#1E88E5'
+      />
+
+      <Button
         title="Logout"
         color="#E53935"
         onPress={() => router.replace('/')}
