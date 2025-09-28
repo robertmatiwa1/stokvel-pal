@@ -33,7 +33,12 @@ export default function GroupList() {
         )}
       />
 
-      <Button
+      	<Button
+  	title="Add New Group"
+  	onPress={() => router.push('/add-group')}
+  	color="#1E88E5"
+	/>
+	<Button
         title="Back to Dashboard"
         onPress={() => router.replace('/dashboard')}
       />
