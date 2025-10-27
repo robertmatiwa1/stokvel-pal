@@ -4,7 +4,9 @@ import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import groupRoutes from "./routes/groupRoutes.js";
+import membershipRoutes from "./routes/membershipRoutes.js";
 
+app.use("/api", membershipRoutes);
 app.use("/api", groupRoutes);
 
 app.use("/api/auth", authRoutes);
