@@ -2,6 +2,13 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import groupRoutes from "./routes/groupRoutes.js";
+
+app.use("/api", groupRoutes);
+
+app.use("/api/auth", authRoutes);
+router.get("/users/profile", verifyToken, getProfile);
 
 dotenv.config();
 
