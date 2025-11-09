@@ -12,8 +12,7 @@ import {
   View,
 } from "react-native";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000/api";
-const CUSTOMER_ID = "customer-1";
+import { API_BASE_URL, CUSTOMER_ID } from "../config/appConfig";
 
 export default function BookingScreen() {
   const navigation = useNavigation();
@@ -48,14 +47,40 @@ export default function BookingScreen() {
         throw new Error(errorPayload.message ?? "Unable to create booking");
       }
 
-      await response.json();
+      const job = (await response.json()) as {
+        id?: string;
+        priceCents?: number;
+      };
 
-      Alert.alert("Booking confirmed", "Your provider will confirm shortly.", [
-        {
-          text: "View jobs",
-          onPress: () => navigation.navigate("Dashboard" as never),
+      if (!job?.id) {
+        throw new Error("Unable to determine booking reference");
+      }
+
+      const checkoutResponse = await fetch(`${API_BASE_URL}/payments/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ]);
+        body: JSON.stringify({
+          jobId: job.id,
+          amountCents: job.priceCents ?? undefined,
+        }),
+      });
+
+      if (!checkoutResponse.ok) {
+        const errorPayload = await checkoutResponse.json().catch(() => ({}));
+        throw new Error(errorPayload.message ?? "Unable to start checkout");
+      }
+
+      const { checkoutUrl } = (await checkoutResponse.json()) as {
+        checkoutUrl?: string;
+      };
+
+      if (!checkoutUrl) {
+        throw new Error("No checkout URL returned by payment service");
+      }
+
+      navigation.navigate("PaymentCheckout" as never, { checkoutUrl, jobId: job.id } as never);
     } catch (error) {
       console.error("Failed to create booking", error);
       Alert.alert("Error", error instanceof Error ? error.message : "Unexpected error");
