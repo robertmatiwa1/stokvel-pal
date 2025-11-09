@@ -1,8 +1,19 @@
+import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { Button, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
 
 export default function PhoneSignupScreen() {
+  const navigation = useNavigation();
   const [phoneNumber, setPhoneNumber] = useState("");
+
+  const handleContinue = () => {
+    if (!phoneNumber.trim()) {
+      Alert.alert("Phone number required", "Please enter your phone number to continue");
+      return;
+    }
+
+    navigation.navigate("Dashboard");
+  };
 
   return (
     <View style={styles.container}>
@@ -14,7 +25,7 @@ export default function PhoneSignupScreen() {
         value={phoneNumber}
         onChangeText={setPhoneNumber}
       />
-      <Button title="Continue" onPress={() => alert("Phone number submitted!")} />
+      <Button title="Continue" onPress={handleContinue} />
     </View>
   );
 }
