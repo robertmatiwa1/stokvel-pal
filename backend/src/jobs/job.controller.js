@@ -9,9 +9,66 @@ export const JobStatus = Object.freeze({
   CANCELLED: "CANCELLED",
 });
 
+export const PaymentStatus = Object.freeze({
+  PENDING: "PENDING",
+  ESCROW: "ESCROW",
+  PAID: "PAID",
+});
+
 const router = Router();
 
 const jobs = [];
+
+const COMMISSION_RATE = 0.1;
+
+const findJobById = (id) => {
+  return jobs.find((item) => item.id === id);
+};
+
+const calculatePayouts = (amountCents) => {
+  const platformCommissionCents = Math.round(amountCents * COMMISSION_RATE);
+  const providerPayoutCents = Math.max(0, amountCents - platformCommissionCents);
+
+  return { providerPayoutCents, platformCommissionCents };
+};
+
+const movePaymentToEscrow = (job) => {
+  if (!job || job.paymentStatus !== PaymentStatus.PENDING) {
+    return undefined;
+  }
+
+  const { providerPayoutCents, platformCommissionCents } = calculatePayouts(job.priceCents);
+
+  job.providerPayoutCents = providerPayoutCents;
+  job.platformCommissionCents = platformCommissionCents;
+  job.paymentStatus = PaymentStatus.ESCROW;
+  job.paymentEscrowedAt = new Date().toISOString();
+
+  return job;
+};
+
+const releasePayment = (job) => {
+  if (!job || job.paymentStatus !== PaymentStatus.ESCROW) {
+    return undefined;
+  }
+
+  job.paymentStatus = PaymentStatus.PAID;
+  job.paymentReleasedAt = new Date().toISOString();
+
+  return job;
+};
+
+const holdJobPaymentInEscrow = (jobId) => {
+  return movePaymentToEscrow(findJobById(jobId));
+};
+
+const releaseJobPayment = (jobId) => {
+  return releasePayment(findJobById(jobId));
+};
+
+const releasePaymentIfEligible = (job) => {
+  return releasePayment(job);
+};
 
 const suburbFallbacks = ["Sandton", "Rosebank", "Midrand", "Fourways"];
 
@@ -79,6 +136,9 @@ router.post("/jobs", (req, res) => {
     scheduledAt: scheduleFor(),
     suburb: resolveSuburb(jobs.length, suburb),
     priceCents: resolvePrice(serviceType),
+    paymentStatus: PaymentStatus.PENDING,
+    providerPayoutCents: 0,
+    platformCommissionCents: 0,
   };
 
   jobs.unshift(newJob);
@@ -113,7 +173,7 @@ router.patch("/jobs/:id/status", (req, res) => {
     return res.status(400).json({ message: "Valid status is required" });
   }
 
-  const job = jobs.find((item) => item.id === id);
+  const job = findJobById(id);
 
   if (!job) {
     return res.status(404).json({ message: "Job not found" });
@@ -141,9 +201,13 @@ router.patch("/jobs/:id/status", (req, res) => {
 
   if (status === JobStatus.COMPLETED) {
     logPushNotification(`Job ${job.id} completed.`);
+    if (releasePaymentIfEligible(job)) {
+      console.log(`[payments] Job ${job.id} payment released after completion.`);
+    }
   }
 
   return res.json(job);
 });
 
+export { findJobById, holdJobPaymentInEscrow, releaseJobPayment };
 export default router;
