@@ -7,6 +7,7 @@ import {
   holdJobPaymentInEscrow,
   releaseJobPayment,
 } from "../jobs/job.controller.js";
+import { sendNotification } from "../notifications/notification.service.js";
 
 const router = Router();
 
@@ -90,6 +91,14 @@ router.post("/payments/webhook", (req, res) => {
       return res
         .status(409)
         .json({ message: "Payment has not been escrowed yet or is already released" });
+    }
+
+    if (updated.providerId) {
+      sendNotification(
+        updated.providerId,
+        "job.payout_released",
+        `Payment for job ${updated.id} has been released.`,
+      );
     }
 
     return res.json({ message: "Payment released to provider", job: updated });

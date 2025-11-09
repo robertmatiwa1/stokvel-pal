@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 
+import { sendNotification } from "../notifications/notification.service.js";
+
 export const JobStatus = Object.freeze({
   PENDING: "PENDING",
   ACCEPTED: "ACCEPTED",
@@ -109,13 +111,8 @@ const isStatusValid = (status) => {
   return Object.values(JobStatus).includes(status);
 };
 
-const logPushNotification = (message) => {
-  // Placeholder for future integration with push notifications
-  console.log(`[push] ${message}`);
-};
-
 router.post("/jobs", (req, res) => {
-  const { customerId, serviceType, notes, suburb } = req.body;
+  const { customerId, serviceType, notes, suburb, providerId } = req.body ?? {};
 
   if (!customerId) {
     return res.status(400).json({ message: "customerId is required" });
@@ -142,6 +139,13 @@ router.post("/jobs", (req, res) => {
   };
 
   jobs.unshift(newJob);
+
+  const targetProviderId = providerId ?? newJob.providerId ?? "providers";
+  sendNotification(
+    targetProviderId,
+    "job.requested",
+    `New ${newJob.serviceType} job ${newJob.id} requested in ${newJob.suburb}.`,
+  );
 
   return res.status(201).json(newJob);
 });
@@ -196,13 +200,26 @@ router.patch("/jobs/:id/status", (req, res) => {
   }
 
   if (status === JobStatus.ACCEPTED) {
-    logPushNotification(`Job ${job.id} accepted${job.providerId ? ` by ${job.providerId}` : ""}.`);
+    sendNotification(
+      job.customerId,
+      "job.accepted",
+      `Your job ${job.id} has been accepted${
+        job.providerId ? ` by ${job.providerId}` : ""
+      }.`,
+    );
   }
 
   if (status === JobStatus.COMPLETED) {
-    logPushNotification(`Job ${job.id} completed.`);
-    if (releasePaymentIfEligible(job)) {
+    const released = releasePaymentIfEligible(job);
+    if (released) {
       console.log(`[payments] Job ${job.id} payment released after completion.`);
+      if (released.providerId) {
+        sendNotification(
+          released.providerId,
+          "job.payout_released",
+          `Payment for job ${released.id} has been released.`,
+        );
+      }
     }
   }
 
