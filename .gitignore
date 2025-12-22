@@ -14,3 +14,10 @@ ios/
 
 # VSCode
 .vscode/
+# Mobile app specific
+mobile/**/node_modules/
+mobile/**/.expo/
+mobile/**/.expo-shared/
+mobile/**/android/
+mobile/**/ios/
+mobile/**/.vscode/
