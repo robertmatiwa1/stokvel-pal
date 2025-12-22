@@ -17,7 +17,7 @@ export default function GroupsScreen() {
 
   const goToCreateGroup = () => {
     // For now reuse the same route, later we will split it into /create-group
-    router.push({ pathname: "/add-group", params: { mode: "create" } });
+    router.push("/create-group" );
   };
 
   const goToTransactions = () => {
