@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.idea/
+.DS_Store
+# Expo / React Native
+.expo/
+.expo-shared/
+android/
+ios/
+*.keystore
+*.jks
+
+# VSCode
+.vscode/
