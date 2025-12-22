@@ -1,23 +1,32 @@
-import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
-import { Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useContext, useState } from "react";
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import { AppContext } from "../context/AppContext";
 
 export default function PhoneSignupScreen() {
-  const navigation = useNavigation();
+  const router = useRouter();
+  const { setPhone } = useContext(AppContext);
+
   const [phoneNumber, setPhoneNumber] = useState("");
 
   const handleContinue = () => {
-    if (!phoneNumber.trim()) {
-      Alert.alert("Phone number required", "Please enter your phone number to continue");
+    const cleaned = phoneNumber.trim();
+
+    if (!cleaned) {
+      Alert.alert("Phone number required", "Please enter your phone number to continue.");
       return;
     }
 
-    navigation.navigate("Dashboard");
+    setPhone(cleaned);
+
+    // In a real app you would trigger OTP send here, for now we mock it
+    router.push("/pin-verification");
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Enter Your Phone Number</Text>
+      <Text style={styles.title}>Enter your phone number</Text>
+
       <TextInput
         style={styles.input}
         placeholder="+27 000 000 000"
@@ -25,7 +34,14 @@ export default function PhoneSignupScreen() {
         value={phoneNumber}
         onChangeText={setPhoneNumber}
       />
-      <Button title="Continue" onPress={handleContinue} />
+
+      <TouchableOpacity style={styles.button} onPress={handleContinue}>
+        <Text style={styles.buttonText}>Continue</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.hint}>
+        We will send you a verification code, for now it is mocked.
+      </Text>
     </View>
   );
 }
@@ -39,14 +55,33 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    marginBottom: 20,
+    marginBottom: 14,
     textAlign: "center",
+    fontWeight: "700",
   },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  button: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#1f6feb",
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  hint: {
+    marginTop: 12,
+    textAlign: "center",
+    opacity: 0.7,
   },
 });

@@ -1,5 +1,5 @@
-import WelcomeScreen from "../src/screens/WelcomeScreen";
+import PhoneSignupScreen from "../src/screens/PhoneSignupScreen";
 
 export default function Page() {
-  return <WelcomeScreen />;
+  return <PhoneSignupScreen />;
 }
