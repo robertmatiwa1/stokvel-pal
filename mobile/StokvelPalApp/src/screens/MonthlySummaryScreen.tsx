@@ -18,8 +18,10 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [year, setYear] = useState<number>(currentYear);
+
   const [rows, setRows] = useState<MonthlySummaryRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -27,21 +29,108 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
     });
   }, [navigation, groupName]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       const data = await getMonthlySummary(groupId, year);
       setRows(Array.isArray(data) ? data : []);
     } catch (e: any) {
       Alert.alert("Error", e?.message ? String(e.message) : "Failed to load monthly summary.");
-    } finally {
-      setLoading(false);
+      setRows([]);
     }
   }, [groupId, year]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    await fetchData();
+    setLoading(false);
+  }, [fetchData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => (b.month || "").localeCompare(a.month || ""));
+  }, [rows]);
+
+  const yearTotals = useMemo(() => {
+    let inTotal = 0;
+    let netTotal = 0;
+    let txTotal = 0;
+
+    for (const r of rows) {
+      inTotal += Number(r.in_total) || 0;
+      netTotal += Number(r.net) || 0;
+      txTotal += Number(r.tx_count) || 0;
+    }
+
+    return { inTotal, netTotal, txTotal };
+  }, [rows]);
+
+  const renderHeader = () => {
+    const hasData = sortedRows.length > 0;
+
+    return (
+      <View style={{ marginBottom: 12 }}>
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: "#eee",
+            borderRadius: 12,
+            padding: 14,
+            backgroundColor: "#fff",
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: "900", marginBottom: 10 }}>Year totals</Text>
+
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <View>
+              <Text style={{ color: "#666" }}>In</Text>
+              <Text style={{ fontSize: 16, fontWeight: "900" }}>{formatZAR(yearTotals.inTotal)}</Text>
+            </View>
+
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={{ color: "#666" }}>Transactions</Text>
+              <Text style={{ fontSize: 16, fontWeight: "900" }}>{yearTotals.txTotal}</Text>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 10 }}>
+            <Text style={{ color: "#666" }}>Net</Text>
+            <Text style={{ fontSize: 16, fontWeight: "900", color: yearTotals.netTotal >= 0 ? "green" : "red" }}>
+              {formatZAR(yearTotals.netTotal)}
+            </Text>
+          </View>
+        </View>
+
+        {!hasData ? (
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: "#eee",
+              borderRadius: 12,
+              padding: 14,
+              backgroundColor: "#fff",
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: "900", marginBottom: 6 }}>No activity for {year} yet</Text>
+            <Text style={{ color: "#666", lineHeight: 18 }}>
+              When members add contributions, you will see monthly totals here. Add a contribution, then pull down to refresh.
+            </Text>
+          </View>
+        ) : (
+          <Text style={{ fontSize: 14, fontWeight: "900", marginTop: 4 }}>Months</Text>
+        )}
+      </View>
+    );
+  };
 
   const renderItem = ({ item }: { item: MonthlySummaryRow }) => {
     const inTotal = Number(item.in_total) || 0;
@@ -59,23 +148,23 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
           marginBottom: 10,
         }}
       >
-        <Text style={{ fontSize: 16, fontWeight: "800" }}>{monthLabel(item.month)}</Text>
+        <Text style={{ fontSize: 16, fontWeight: "900" }}>{monthLabel(item.month)}</Text>
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
           <View>
             <Text style={{ color: "#666" }}>In</Text>
-            <Text style={{ fontSize: 16, fontWeight: "800" }}>{formatZAR(inTotal)}</Text>
+            <Text style={{ fontSize: 16, fontWeight: "900" }}>{formatZAR(inTotal)}</Text>
           </View>
 
           <View style={{ alignItems: "flex-end" }}>
             <Text style={{ color: "#666" }}>Transactions</Text>
-            <Text style={{ fontSize: 16, fontWeight: "800" }}>{tx}</Text>
+            <Text style={{ fontSize: 16, fontWeight: "900" }}>{tx}</Text>
           </View>
         </View>
 
         <View style={{ marginTop: 10 }}>
           <Text style={{ color: "#666" }}>Net</Text>
-          <Text style={{ fontSize: 16, fontWeight: "800", color: net >= 0 ? "green" : "red" }}>
+          <Text style={{ fontSize: 16, fontWeight: "900", color: net >= 0 ? "green" : "red" }}>
             {formatZAR(net)}
           </Text>
         </View>
@@ -85,14 +174,7 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
 
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: "#fff" }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-      >
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <TouchableOpacity
           onPress={() => setYear((y) => y - 1)}
           style={{
@@ -103,7 +185,7 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
             borderColor: "#ddd",
           }}
         >
-          <Text style={{ fontWeight: "700" }}>Prev</Text>
+          <Text style={{ fontWeight: "800" }}>Prev</Text>
         </TouchableOpacity>
 
         <Text style={{ fontSize: 18, fontWeight: "900" }}>{year}</Text>
@@ -116,21 +198,22 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
             borderRadius: 10,
             borderWidth: 1,
             borderColor: "#ddd",
+            opacity: year >= currentYear ? 0.4 : 1,
           }}
+          disabled={year >= currentYear}
         >
-          <Text style={{ fontWeight: "700" }}>Next</Text>
+          <Text style={{ fontWeight: "800" }}>Next</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={rows}
+        data={sortedRows}
         keyExtractor={(x) => x.month}
         renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        ListHeaderComponent={renderHeader}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
-          <Text style={{ color: "#666", marginTop: 12 }}>
-            {loading ? "Loading..." : "No data for this year yet."}
-          </Text>
+          loading ? <Text style={{ color: "#666", marginTop: 12 }}>Loading...</Text> : <View style={{ height: 8 }} />
         }
       />
     </View>
