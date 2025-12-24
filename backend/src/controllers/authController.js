@@ -1,48 +1,97 @@
-import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
+import { pool } from "../config/db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET;
+const signToken = (user) => {
+  return jwt.sign(
+    { id: user.id, phone: user.phone, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+};
 
+// POST /api/auth/register
+export const register = async (req, res) => {
+  try {
+    const { phone, pin, role, username } = req.body;
+
+    if (!phone || !pin) {
+      return res.status(400).json({ message: "phone and pin are required" });
+    }
+
+    const cleanPhone = String(phone).trim();
+    const cleanRole = role ? String(role).trim().toLowerCase() : "user";
+    const cleanUsername = username && String(username).trim()
+    ? String(username).trim()
+    : `user_${cleanPhone.replace(/\D/g, "")}`;
+
+    if (!["user", "admin"].includes(cleanRole)) {
+      return res.status(400).json({ message: "role must be user or admin" });
+    }
+
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE phone = $1 OR username = $2 LIMIT 1",
+      [cleanPhone, cleanUsername]
+    );
+
+    if (existing.rowCount > 0) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    const hashed = await bcrypt.hash(String(pin), 10);
+    const id = uuidv4();
+
+    const created = await pool.query(
+      `INSERT INTO users (id, username, phone, pin_hash, role)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, username, phone, role`,
+      [id, cleanUsername, cleanPhone, hashed, cleanRole]
+    );
+
+    const user = created.rows[0];
+    const token = signToken(user);
+
+    return res.status(201).json({ user, token });
+  } catch (err) {
+    console.error("register error:", err);
+    return res.status(500).json({ message: "Server error", error: String(err.message || err) });
+  }
+};
+
+// POST /api/auth/login
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const result = await pool.query("SELECT * FROM users WHERE email=$1", [email]);
+    const { phone, pin } = req.body;
 
-    if (result.rows.length === 0)
-      return res.status(400).json({ message: "Invalid email or password" });
+    if (!phone || !pin) {
+      return res.status(400).json({ message: "phone and pin are required" });
+    }
 
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid)
-      return res.status(400).json({ message: "Invalid email or password" });
+    const cleanPhone = String(phone).trim();
 
-    const accessToken = jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
-      JWT_SECRET,
-      { expiresIn: "1h" }
+    const found = await pool.query(
+      "SELECT id, phone, pin_hash, role FROM users WHERE phone = $1 LIMIT 1",
+      [cleanPhone]
     );
 
-    const refreshToken = jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
-      REFRESH_SECRET,
-      { expiresIn: "7d" }
-    );
+    if (found.rowCount === 0) {
+      return res.status(401).json({ message: "Invalid phone or PIN" });
+    }
 
-    // Store refresh token in DB
-    await pool.query(
-      "INSERT INTO refresh_tokens (user_id, token) VALUES ($1, $2)",
-      [user.id, refreshToken]
-    );
+    const userRow = found.rows[0];
+    const ok = await bcrypt.compare(String(pin), userRow.pin_hash);
 
-    res.json({
-      accessToken,
-      refreshToken,
-      user: { id: user.id, username: user.username, email: user.email },
-    });
-  } catch (error) {
-    console.error("Login error:", error.message);
-    res.status(500).json({ message: "Login failed" });
+    if (!ok) {
+      return res.status(401).json({ message: "Invalid phone or PIN" });
+    }
+
+    const user = { id: userRow.id, phone: userRow.phone, role: userRow.role };
+    const token = signToken(user);
+
+    return res.json({ user, token });
+  } catch (err) {
+    console.error("login error:", err);
+    return res.status(500).json({ message: "Server error", error: String(err.message || err) });
   }
 };

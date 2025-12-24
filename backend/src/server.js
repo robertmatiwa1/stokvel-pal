@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+dotenv.config({ path: ".env" });
 import cors from "cors";
 
 import userRoutes from "./routes/userRoutes.js";
@@ -9,8 +10,10 @@ import membershipRoutes from "./routes/membershipRoutes.js";
 import jobRoutes from "./jobs/job.controller.js";
 import reviewRoutes from "./reviews/review.controller.js";
 import paymentRoutes from "./payments/payment.routes.js";
-
-dotenv.config();
+import membershipsRoutes from "./routes/membershipsRoutes.js";
+import contributionRoutes from "./routes/contributionRoutes.js";
+import summaryRoutes from "./routes/summaryRoutes.js";
+import contributionAdminRoutes from "./routes/contributionAdminRoutes.js";
 
 const app = express();
 
@@ -32,6 +35,13 @@ app.use("/api", jobRoutes);
 app.use("/api", reviewRoutes);
 app.use("/api", paymentRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/memberships", membershipsRoutes);
+app.use("/api/contributions", contributionRoutes);
+app.use("/api", summaryRoutes);
+app.use("/api", contributionAdminRoutes);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
