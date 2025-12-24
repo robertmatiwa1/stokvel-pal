@@ -17,7 +17,9 @@ export default function AddContributionScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: groupName ? `Add contribution, ${groupName}` : "Add contribution" });
+    navigation.setOptions({
+      title: groupName ? `Add contribution, ${groupName}` : "Add contribution",
+    });
   }, [navigation, groupName]);
 
   const loadMembers = useCallback(async () => {
@@ -27,6 +29,7 @@ export default function AddContributionScreen({ navigation, route }: Props) {
         user_id: m.user_id ?? m.id ?? m.userId,
         username: m.username ?? "",
       }));
+
       setMembers(mapped);
       if (mapped.length > 0) setSelectedUserId(mapped[0].user_id);
     } catch (e: any) {
@@ -61,6 +64,10 @@ export default function AddContributionScreen({ navigation, route }: Props) {
       });
 
       Alert.alert("Saved", "Contribution added");
+
+      // ✅ THIS IS CORRECT:
+      // Returning to Monthly Summary triggers useFocusEffect,
+      // which reloads the summary automatically
       navigation.goBack();
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -72,6 +79,7 @@ export default function AddContributionScreen({ navigation, route }: Props) {
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <Text style={{ fontWeight: "700", marginBottom: 8 }}>Member</Text>
+
       <View style={{ borderWidth: 1, borderColor: "#ddd", borderRadius: 12, padding: 12, marginBottom: 12 }}>
         {members.length === 0 ? (
           <Text style={{ color: "#666" }}>No members found</Text>
@@ -80,11 +88,7 @@ export default function AddContributionScreen({ navigation, route }: Props) {
             <TouchableOpacity
               key={m.user_id}
               onPress={() => setSelectedUserId(m.user_id)}
-              style={{
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: "#eee",
-              }}
+              style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#eee" }}
             >
               <Text style={{ fontWeight: selectedUserId === m.user_id ? "800" : "500" }}>
                 {m.username || "Member"} {selectedUserId === m.user_id ? "✓" : ""}
