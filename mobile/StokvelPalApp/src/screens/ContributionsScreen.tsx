@@ -2,7 +2,7 @@ import React, { useCallback, useLayoutEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, Alert, RefreshControl } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { listContributionsByGroup } from "../api/endpoints";
+import { listContributionsByGroup, getMyRoleInGroup, GroupRole } from "../api/endpoints";
 import { formatZAR } from "../utils/money";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Contributions">;
@@ -13,10 +13,11 @@ export default function ContributionsScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [role, setRole] = useState<GroupRole | null>(null);
+  const isAdmin = role === "admin";
+
   const [total, setTotal] = useState<string>("0");
-  const [totalsByMember, setTotalsByMember] = useState<
-    { user_id: string; username: string; total: string }[]
-  >([]);
+  const [totalsByMember, setTotalsByMember] = useState<{ user_id: string; username: string; total: string }[]>([]);
   const [items, setItems] = useState<any[]>([]);
 
   useLayoutEffect(() => {
@@ -25,6 +26,15 @@ export default function ContributionsScreen({ navigation, route }: Props) {
     });
   }, [navigation, groupName]);
 
+  const loadRole = useCallback(async () => {
+    try {
+      const res = await getMyRoleInGroup(groupId);
+      setRole(res?.role ?? null);
+    } catch {
+      setRole(null);
+    }
+  }, [groupId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -32,12 +42,13 @@ export default function ContributionsScreen({ navigation, route }: Props) {
       setTotal(data.total ?? "0");
       setTotalsByMember(data.totalsByMember ?? []);
       setItems(data.items ?? []);
+      await loadRole();
     } catch (e: any) {
       Alert.alert("Error", e.message);
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, loadRole]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -46,12 +57,13 @@ export default function ContributionsScreen({ navigation, route }: Props) {
       setTotal(data.total ?? "0");
       setTotalsByMember(data.totalsByMember ?? []);
       setItems(data.items ?? []);
+      await loadRole();
     } catch (e: any) {
       Alert.alert("Error", e.message);
     } finally {
       setRefreshing(false);
     }
-  }, [groupId]);
+  }, [groupId, loadRole]);
 
   React.useEffect(() => {
     load();
@@ -63,33 +75,29 @@ export default function ContributionsScreen({ navigation, route }: Props) {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      {/* Group total */}
       <View style={{ padding: 12, borderRadius: 12, backgroundColor: "#f2f2f2" }}>
         <Text style={{ fontSize: 16, fontWeight: "700" }}>Group total</Text>
-        <Text style={{ fontSize: 28, fontWeight: "800", marginTop: 6 }}>
-          {formatZAR(Number(total))}
-        </Text>
+        <Text style={{ fontSize: 28, fontWeight: "800", marginTop: 6 }}>{formatZAR(Number(total))}</Text>
 
-        <TouchableOpacity
-          onPress={openAdd}
-          style={{
-            marginTop: 12,
-            backgroundColor: "black",
-            paddingVertical: 12,
-            borderRadius: 10,
-          }}
-        >
-          <Text style={{ color: "white", textAlign: "center", fontWeight: "700" }}>
-            Add contribution
-          </Text>
-        </TouchableOpacity>
+        {isAdmin ? (
+          <TouchableOpacity
+            onPress={openAdd}
+            style={{
+              marginTop: 12,
+              backgroundColor: "black",
+              paddingVertical: 12,
+              borderRadius: 10,
+            }}
+          >
+            <Text style={{ color: "white", textAlign: "center", fontWeight: "700" }}>Add contribution</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={{ color: "#666", marginTop: 10 }}>Only admins can add contributions.</Text>
+        )}
       </View>
 
-      {/* Totals per member */}
       <View style={{ marginTop: 16 }}>
-        <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 8 }}>
-          Totals per member
-        </Text>
+        <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 8 }}>Totals per member</Text>
 
         <FlatList
           data={totalsByMember}
@@ -108,30 +116,21 @@ export default function ContributionsScreen({ navigation, route }: Props) {
               }}
             >
               <Text style={{ fontWeight: "700" }}>{item.username || "Member"}</Text>
-              <Text style={{ marginTop: 6, fontSize: 16, fontWeight: "800" }}>
-                {formatZAR(Number(item.total))}
-              </Text>
+              <Text style={{ marginTop: 6, fontSize: 16, fontWeight: "800" }}>{formatZAR(Number(item.total))}</Text>
             </View>
           )}
         />
       </View>
 
-      {/* Contribution history */}
       <View style={{ marginTop: 16, flex: 1 }}>
-        <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 8 }}>
-          History
-        </Text>
+        <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 8 }}>History</Text>
 
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
-            <Text style={{ color: "#666", marginTop: 12 }}>
-              {loading ? "Loading..." : "No contributions yet."}
-            </Text>
+            <Text style={{ color: "#666", marginTop: 12 }}>{loading ? "Loading..." : "No contributions yet."}</Text>
           }
           renderItem={({ item }) => (
             <View
@@ -144,18 +143,10 @@ export default function ContributionsScreen({ navigation, route }: Props) {
                 borderColor: "#eee",
               }}
             >
-              <Text style={{ fontWeight: "800" }}>
-                {formatZAR(Number(item.amount))}
-              </Text>
-              <Text style={{ marginTop: 4, color: "#444" }}>
-                {item.username || "Member"}
-              </Text>
-              <Text style={{ marginTop: 4, color: "#666" }}>
-                {new Date(item.paid_at).toLocaleDateString("en-ZA")}
-              </Text>
-              {!!item.note && (
-                <Text style={{ marginTop: 6, color: "#333" }}>{item.note}</Text>
-              )}
+              <Text style={{ fontWeight: "800" }}>{formatZAR(Number(item.amount))}</Text>
+              <Text style={{ marginTop: 4, color: "#444" }}>{item.username || "Member"}</Text>
+              <Text style={{ marginTop: 4, color: "#666" }}>{new Date(item.paid_at).toLocaleDateString("en-ZA")}</Text>
+              {!!item.note && <Text style={{ marginTop: 6, color: "#333" }}>{item.note}</Text>}
             </View>
           )}
         />

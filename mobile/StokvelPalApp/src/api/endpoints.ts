@@ -68,6 +68,12 @@ export function addMember(groupId: string, username: string, phone: string) {
   return apiRequest<any>(`/memberships/add/${groupId}`, "POST", { username, phone });
 }
 
+export type GroupRole = "admin" | "member";
+
+export function getMyRoleInGroup(groupId: string) {
+  return apiRequest<{ role: GroupRole }>(`/memberships/role/${groupId}`, "GET");
+}
+
 /**
  * Contributions
  */
@@ -114,8 +120,5 @@ export type MonthlySummaryRow = {
 };
 
 export function getMonthlySummary(groupId: string, year: number) {
-  return apiRequest<MonthlySummaryRow[]>(
-    `/groups/${groupId}/monthly-summary?year=${year}`,
-    "GET"
-  );
+  return apiRequest<MonthlySummaryRow[]>(`/groups/${groupId}/monthly-summary?year=${year}`, "GET");
 }

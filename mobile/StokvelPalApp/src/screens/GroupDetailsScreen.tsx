@@ -2,7 +2,7 @@ import React, { useCallback, useLayoutEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, Alert, RefreshControl } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { joinGroup, listMembers, Member } from "../api/endpoints";
+import { joinGroup, listMembers, Member, getMyRoleInGroup, GroupRole } from "../api/endpoints";
 import { useFocusEffect } from "@react-navigation/native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "GroupDetails">;
@@ -14,22 +14,38 @@ export default function GroupDetailsScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
 
+  const [role, setRole] = useState<GroupRole | null>(null);
+  const isAdmin = role === "admin";
+
   useLayoutEffect(() => {
     navigation.setOptions({ title: groupName || "Group details" });
   }, [navigation, groupName]);
 
+  const loadMembers = useCallback(async () => {
+    const data = await listMembers(groupId);
+    setMembers(Array.isArray(data) ? data : []);
+  }, [groupId]);
+
+  const loadRole = useCallback(async () => {
+    try {
+      const res = await getMyRoleInGroup(groupId);
+      setRole(res?.role ?? null);
+    } catch {
+      setRole(null);
+    }
+  }, [groupId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listMembers(groupId);
-      setMembers(data);
+      await Promise.all([loadMembers(), loadRole()]);
     } catch (e: any) {
-      const message = e?.message ? String(e.message) : "Failed to load members.";
+      const message = e?.message ? String(e.message) : "Failed to load group data.";
       Alert.alert("Error", message);
     } finally {
       setLoading(false);
     }
-  }, [groupId]);
+  }, [loadMembers, loadRole]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,18 +71,24 @@ export default function GroupDetailsScreen({ navigation, route }: Props) {
     navigation.navigate("MonthlySummary", { groupId, groupName });
   }, [navigation, groupId, groupName]);
 
+  const goContributions = useCallback(() => {
+    navigation.navigate("Contributions", { groupId, groupName });
+  }, [navigation, groupId, groupName]);
+
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
         <Text style={{ fontSize: 18, fontWeight: "600" }}>Members</Text>
 
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("AddMember", { groupId, groupName })}
-            style={{ padding: 10, borderWidth: 1, borderRadius: 8 }}
-          >
-            <Text>Add member</Text>
-          </TouchableOpacity>
+          {isAdmin ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("AddMember", { groupId, groupName })}
+              style={{ padding: 10, borderWidth: 1, borderRadius: 8 }}
+            >
+              <Text>Add member</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             onPress={handleJoin}
@@ -92,9 +114,7 @@ export default function GroupDetailsScreen({ navigation, route }: Props) {
           marginBottom: 12,
         }}
       >
-        <Text style={{ color: "#fff", fontWeight: "600", textAlign: "center" }}>
-          Monthly summary
-        </Text>
+        <Text style={{ color: "#fff", fontWeight: "600", textAlign: "center" }}>Monthly summary</Text>
       </TouchableOpacity>
 
       <FlatList
@@ -114,17 +134,21 @@ export default function GroupDetailsScreen({ navigation, route }: Props) {
         ListFooterComponent={
           <View style={{ marginTop: 12 }}>
             <TouchableOpacity
-              onPress={() => navigation.navigate("Contributions", { groupId, groupName })}
+              onPress={goContributions}
               style={{
                 backgroundColor: "black",
                 paddingVertical: 12,
                 borderRadius: 10,
               }}
             >
-              <Text style={{ color: "white", textAlign: "center", fontWeight: "700" }}>
-                View Contributions
-              </Text>
+              <Text style={{ color: "white", textAlign: "center", fontWeight: "700" }}>View Contributions</Text>
             </TouchableOpacity>
+
+            {!isAdmin ? (
+              <Text style={{ color: "#666", marginTop: 10 }}>
+                You are a member, only admins can add members and contributions.
+              </Text>
+            ) : null}
           </View>
         }
       />
