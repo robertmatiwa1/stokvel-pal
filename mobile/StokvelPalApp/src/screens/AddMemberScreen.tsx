@@ -45,8 +45,13 @@ export default function AddMemberScreen({ navigation, route }: Props) {
       setPhone("");
       navigation.goBack();
     } catch (e: any) {
-      const message = e?.message ? String(e.message) : "Failed to add member.";
-      Alert.alert("Error", message);
+      const raw = e?.message ? String(e.message) : "Failed to add member.";
+      const msg =
+        raw.includes("403") || raw.toLowerCase().includes("permission")
+          ? "Only admins can add members."
+          : raw;
+
+      Alert.alert("Error", msg);
     } finally {
       setSaving(false);
     }

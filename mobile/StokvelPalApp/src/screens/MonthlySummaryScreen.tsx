@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, Alert, RefreshControl } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { getMonthlySummary, MonthlySummaryRow } from "../api/endpoints";
 import { formatZAR } from "../utils/money";
+import { useFocusEffect } from "@react-navigation/native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "MonthlySummary">;
 
@@ -51,9 +52,11 @@ export default function MonthlySummaryScreen({ navigation, route }: Props) {
     setRefreshing(false);
   }, [fetchData]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => (b.month || "").localeCompare(a.month || ""));

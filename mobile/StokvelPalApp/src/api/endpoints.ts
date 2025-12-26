@@ -68,10 +68,14 @@ export function addMember(groupId: string, username: string, phone: string) {
   return apiRequest<any>(`/memberships/add/${groupId}`, "POST", { username, phone });
 }
 
-export type GroupRole = "admin" | "member";
+export type GroupRole = "chairperson" | "treasurer" | "secretary" | "member";
 
+/**
+ * Returns the current user's role in a group.
+ * Backend endpoint: GET /api/groups/:groupId/me/role
+ */
 export function getMyRoleInGroup(groupId: string) {
-  return apiRequest<{ role: GroupRole }>(`/memberships/role/${groupId}`, "GET");
+  return apiRequest<{ role: GroupRole }>(`/groups/${groupId}/me/role`, "GET");
 }
 
 /**
@@ -121,4 +125,20 @@ export type MonthlySummaryRow = {
 
 export function getMonthlySummary(groupId: string, year: number) {
   return apiRequest<MonthlySummaryRow[]>(`/groups/${groupId}/monthly-summary?year=${year}`, "GET");
+}
+
+export type MemberWithRole = {
+  user_id: string;
+  username: string;
+  phone: string;
+  role: "chairperson" | "treasurer" | "secretary" | "member";
+  joined_at: string;
+};
+
+export function listMembersWithRoles(groupId: string) {
+  return apiRequest<MemberWithRole[]>(`/groups/${groupId}/members/roles`, "GET");
+}
+
+export function updateMemberRole(groupId: string, userId: string, role: MemberWithRole["role"]) {
+  return apiRequest(`/groups/${groupId}/members/${userId}/role`, "PATCH", { role });
 }
