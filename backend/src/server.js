@@ -10,10 +10,10 @@ import membershipRoutes from "./routes/membershipRoutes.js";
 import jobRoutes from "./jobs/job.controller.js";
 import reviewRoutes from "./reviews/review.controller.js";
 import paymentRoutes from "./payments/payment.routes.js";
-import membershipsRoutes from "./routes/membershipsRoutes.js";
 import contributionRoutes from "./routes/contributionRoutes.js";
 import summaryRoutes from "./routes/summaryRoutes.js";
 import contributionAdminRoutes from "./routes/contributionAdminRoutes.js";
+import roleRoutes from "./routes/roleRoutes.js";
 
 const app = express();
 
@@ -35,10 +35,11 @@ app.use("/api", jobRoutes);
 app.use("/api", reviewRoutes);
 app.use("/api", paymentRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/memberships", membershipsRoutes);
+app.use("/api/memberships", membershipRoutes);
 app.use("/api/contributions", contributionRoutes);
 app.use("/api", summaryRoutes);
 app.use("/api", contributionAdminRoutes);
+app.use("/api", roleRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, "0.0.0.0", () => {
